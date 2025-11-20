@@ -36,3 +36,4 @@ mvnw.cmd
 mvnw
 .mvn/wrapper/maven-wrapper.properties
 /target
+/src/main/resources/certs
