@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html xmlns:th="http://thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employees Dashboard</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        /* Basic styling for active sections */
+        .content-section { display: none; }
+        .content-section.active { display: block; }
+
+        .sidebar-section li.active {
+            background: #eee;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .sidebar-section li {
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: 4px;
+        }
+        .sidebar-section li:hover { background: #f3f3f3; }
+    </style>
+</head>
+<body>
+<div class="dashboard">
+    <aside class="sidebar">
+        <div class="logo">
+            <div class="logo-icon">💼</div>
+            <h2>BlackstoneHR</h2>
+        </div>
+        <div class="sidebar-section">
+            <h3>Your Company</h3>
+            <ul>
+                <li class="active" data-target="employees-section">👥 Employees</li>
+                <li data-target="payroll-section">💰 Payroll</li>
+                <li data-target="applicant-section">📋 Applicant Tracking</li>
+                <li data-target="settings-section">⚙️ Settings</li>
+            </ul>
+        </div>
+    </aside>
+
+    <main class="content">
+        <!-- Employees section -->
+        <div id="employees-section" class="content-section active">
+            <div class="page-header">
+                <h1>Company Employees</h1>
+                <div class="actions" hidden="hidden">
+                    <button class="btn">Add Employees</button>
+                    <button class="btn">Import Employees</button>
+                </div>
+            </div>
+
+            <div class="filters">
+                <input type="text" id="searchInput" placeholder="Search Employee" class="search-input">
+                <select id="statusFilter" class="filter-select">
+                    <option value="all">All</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+
+            <table class="employee-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Department</th>
+                    <th>Contact</th>
+                    <th>Hire Date</th>
+                    <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody id="employeeTableBody">
+                <!-- Data will be inserted dynamically here -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Employee Details section (hidden by default) -->
+        <div id="employee-details-section" class="content-section">
+            <button id="backToListBtn" class="btn" style="margin-bottom: 10px;">← Back to Employees</button>
+            <h1>Employee Details</h1>
+
+            <div class="employee-details-card">
+                <p><strong>ID:</strong> <span id="detail-id"></span></p>
+                <p><strong>Name:</strong> <span id="detail-name"></span></p>
+                <p><strong>Department:</strong> <span id="detail-department"></span></p>
+                <p><strong>Position:</strong> <span id="detail-position"></span></p>
+                <p><strong>Contact:</strong> <span id="detail-contact"></span></p>
+                <p><strong>Hire Date:</strong> <span id="detail-hiredate"></span></p>
+            </div>
+        </div>
+
+
+        <!-- Payroll section -->
+        <div id="payroll-section" class="content-section">
+            <h2>Company Payroll</h2>
+
+            <div class="payroll-controls">
+                <input type="text" id="searchPayroll" placeholder="Search by Employee ID">
+            </div>
+
+            <table class="salary-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Employee ID</th>
+                    <th>Salary</th>
+                    <th>Work Days</th>
+                    <th>Days Worked</th>
+                    <th>Hours Worked</th>
+                    <th>Overtime (Hours)</th>
+                    <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody id="salaryTableBody">
+                <!-- Populated dynamically -->
+                </tbody>
+            </table>
+
+            <!-- Overlay Payroll Details Panel -->
+            <div id="payrollDetails" class="payroll-details-overlay hidden">
+                <div class="payroll-details-content">
+                    <button id="closePayrollDetails">×</button>
+                    <h3>Payroll Details</h3>
+                    <div id="payroll-details-body">
+                        <!-- Filled dynamically via JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Applicant Tracking -->
+        <div id="applicant-section" class="content-section">
+            <div class="page-header">
+                <h1>Company Employees</h1>
+                <div class="actions" hidden="hidden">
+                    <button class="btn">Add Applicants</button>
+                    <button class="btn">Import Applicants</button>
+                </div>
+            </div>
+
+            <table class="applicant-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Position</th>
+                    <th>Contact</th>
+                    <th>Date Applied</th>
+                    <th>Expected Salary</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody id="applicantTableBody">
+                <!-- Data will be inserted dynamically here -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Settings -->
+        <div id="settings-section" class="content-section">
+            <h1>Settings</h1>
+            <p>Configure your HR dashboard preferences here.</p>
+        </div>
+    </main>
+</div>
+<script src="/js/employees.js?v=1.0.0"></script>
+</body>
+</html>
