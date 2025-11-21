@@ -11,4 +11,9 @@ public class DashboardController {
     public String employeesDashboard (Model model) {
         return "employees_dashboard";
     }
+
+    @GetMapping("/login")
+    public String login() {
+        return "login";
+    }
 }
