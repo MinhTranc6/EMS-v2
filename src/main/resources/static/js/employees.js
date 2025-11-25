@@ -1,79 +1,165 @@
-let currentPage = 0;
-let totalPages = 0;
-const pageSize = 10;
+﻿const pageSize = 10;
+
+const paginationState = {
+  employees: { currentPage: 0, totalPages: 0 },
+  salaries: { currentPage: 0, totalPages: 0 },
+  applicants: { currentPage: 0, totalPages: 0 }
+};
+
+const sectionConfigs = {
+  employees: {
+    tableBodyId: "employeeTableBody",
+    colSpan: 6,
+    emptyText: "No employees found.",
+    errorText: "Error loading employees.",
+    endpoint: "/api/employees",
+    paginationId: "pagination-controls",
+    paginationParentSelector: "#employees-section",
+    renderRow: emp => `
+      <td>${emp.id}</td>
+      <td>${emp.name || "-"}</td>
+      <td>${emp.departmentName || "-"}</td>
+      <td><strong>${emp.contact || "-"}</strong><br>${emp.email || ""}</td>
+      <td>${emp.hireDate || "-"}</td>
+      <td><button class="details-btn">View</button></td>
+    `,
+    afterRowRender: (row, emp) => {
+      row.querySelector(".details-btn").addEventListener("click", () => showEmployeeDetails(emp));
+    }
+  },
+  salaries: {
+    tableBodyId: "salaryTableBody",
+    colSpan: 8,
+    emptyText: "No salary records found.",
+    errorText: "Error loading salary data.",
+    endpoint: "/api/payrolls",
+    paginationId: "salary-pagination-controls",
+    paginationParentSelector: "#payroll-section",
+    renderRow: sal => `
+      <td>${sal.id ?? "-"}</td>
+      <td>${sal.employeeId ?? "-"}</td>
+      <td>${sal.negotiatedAmount?.toLocaleString() ?? "-"}</td>
+      <td>${sal.workDays ?? "-"}</td>
+      <td>${sal.daysWorked ?? "-"}</td>
+      <td>${sal.hoursWorked ?? "-"}</td>
+      <td>${sal.hoursOverTime ?? "-"}</td>
+      <td><button class="details-btn">View</button></td>
+    `,
+    afterRowRender: (row, sal) => {
+      row.querySelector(".details-btn").addEventListener("click", () => showSalaryDetails(sal));
+    }
+  },
+  applicants: {
+    tableBodyId: "applicantTableBody",
+    colSpan: 8,
+    emptyText: "No applicants records found.",
+    errorText: "Error loading applicant data.",
+    endpoint: "/api/applicants",
+    paginationId: "applicant-pagination-controls",
+    paginationParentSelector: "#applicant-section",
+    renderRow: app => `
+      <td>${app.id}</td>
+      <td>${app.name || "-"}</td>
+      <td>${app.positionTitle || "-"}</td>
+      <td><strong>${app.contact || "-"}</strong></td>
+      <td>${app.dateApplied || "-"}</td>
+      <td>${app.expectedSalary || "-"}</td>
+      <td>${app.status || "-"}</td>
+      <td><button class="details-btn">View</button></td>
+    `,
+    afterRowRender: (row, app) => {
+      row.querySelector(".details-btn").addEventListener("click", () => showApplicantDetails(app));
+    }
+  }
+};
 
 document.addEventListener("DOMContentLoaded", () => {
   initSidebarNavigation();
-  loadEmployees(currentPage);
+  loadEmployees(0);
   loadSalaries(0);
   loadApplicants(0);
   setupBackButton();
 });
 
 /* ----------------------------
-   Load Employees (with pagination)
+   Generic pagination loader
 ----------------------------- */
-async function loadEmployees(page = 0) {
-  const tableBody = document.getElementById("employeeTableBody");
-  tableBody.innerHTML = `<tr><td colspan="6">Loading...</td></tr>`;
+async function loadSection(sectionKey, page = 0) {
+  const config = sectionConfigs[sectionKey];
+  const state = paginationState[sectionKey];
+  const tableBody = document.getElementById(config.tableBodyId);
+
+  setTableMessage(tableBody, config.colSpan, "Loading...");
 
   try {
-    const response = await fetch(`/api/employees?page=${page}&size=${pageSize}`);
-    if (!response.ok) throw new Error("Failed to fetch employees");
+    const response = await fetch(`${config.endpoint}?page=${page}&size=${pageSize}`);
+    if (!response.ok) throw new Error(`Failed to fetch ${sectionKey}`);
 
     const data = await response.json();
-    const employees = data.content || [];
-    currentPage = data.number;
-    totalPages = data.totalPages;
+    const items = data.content || [];
+    state.currentPage = data.number;
+    state.totalPages = data.totalPages;
 
-    if (!employees.length) {
-      tableBody.innerHTML = `<tr><td colspan="6">No employees found.</td></tr>`;
+    if (!items.length) {
+      setTableMessage(tableBody, config.colSpan, config.emptyText);
       return;
     }
 
     tableBody.innerHTML = "";
-    employees.forEach(emp => {
+    items.forEach(item => {
       const row = document.createElement("tr");
-      row.innerHTML = `
-        <td>${emp.id}</td>
-        <td>${emp.name || "-"}</td>
-        <td>${emp.departmentName || "-"}</td>
-        <td><strong>${emp.contact || "-"}</strong><br>${emp.email || ""}</td>
-        <td>${emp.hireDate || "-"}</td>
-        <td><button class="details-btn">View</button></td>
-      `;
-      row.querySelector(".details-btn").addEventListener("click", () => showEmployeeDetails(emp));
+      row.innerHTML = config.renderRow(item);
+      config.afterRowRender?.(row, item);
       tableBody.appendChild(row);
     });
 
-    renderPaginationControls();
+    renderPaginationControls(sectionKey);
 
   } catch (err) {
-    console.error("Error loading employees:", err);
-    tableBody.innerHTML = `<tr><td colspan="6">Error loading employees.</td></tr>`;
+    console.error(`Error loading ${sectionKey}:`, err);
+    setTableMessage(tableBody, config.colSpan, config.errorText);
   }
+}
+
+function loadEmployees(page = 0) {
+  return loadSection("employees", page);
+}
+
+function loadSalaries(page = 0) {
+  return loadSection("salaries", page);
+}
+
+function loadApplicants(page = 0) {
+  return loadSection("applicants", page);
 }
 
 /* ----------------------------
    Render Pagination Buttons
 ----------------------------- */
-function renderPaginationControls() {
-  let paginationDiv = document.getElementById("pagination-controls");
+function renderPaginationControls(sectionKey) {
+  const config = sectionConfigs[sectionKey];
+  const state = paginationState[sectionKey];
+
+  let paginationDiv = document.getElementById(config.paginationId);
   if (!paginationDiv) {
     paginationDiv = document.createElement("div");
-    paginationDiv.id = "pagination-controls";
+    paginationDiv.id = config.paginationId;
     paginationDiv.className = "pagination";
-    document.querySelector("#employees-section").appendChild(paginationDiv);
+    document.querySelector(config.paginationParentSelector).appendChild(paginationDiv);
   }
 
   paginationDiv.innerHTML = `
-    <button ${currentPage === 0 ? "disabled" : ""} id="prevPage">Previous</button>
-    <span>Page ${currentPage + 1} of ${totalPages}</span>
-    <button ${currentPage >= totalPages - 1 ? "disabled" : ""} id="nextPage">Next</button>
+    <button class="prev-btn" ${state.currentPage === 0 ? "disabled" : ""}>Previous</button>
+    <span>Page ${state.currentPage + 1} of ${state.totalPages}</span>
+    <button class="next-btn" ${state.currentPage >= state.totalPages - 1 ? "disabled" : ""}>Next</button>
   `;
 
-  document.getElementById("prevPage")?.addEventListener("click", () => loadEmployees(currentPage - 1));
-  document.getElementById("nextPage")?.addEventListener("click", () => loadEmployees(currentPage + 1));
+  paginationDiv.querySelector(".prev-btn")?.addEventListener("click", () => loadSection(sectionKey, state.currentPage - 1));
+  paginationDiv.querySelector(".next-btn")?.addEventListener("click", () => loadSection(sectionKey, state.currentPage + 1));
+}
+
+function setTableMessage(tableBody, colSpan, message) {
+  tableBody.innerHTML = `<tr><td colspan="${colSpan}">${message}</td></tr>`;
 }
 
 /* ----------------------------
@@ -96,74 +182,6 @@ function setupBackButton() {
     document.getElementById("employee-details-section").classList.remove("active");
     document.getElementById("employees-section").classList.add("active");
   });
-}
-
-/* ----------------------------
-   Load Salaries (with pagination)
------------------------------ */
-async function loadSalaries(page = 0) {
-  const tableBody = document.getElementById("salaryTableBody");
-  tableBody.innerHTML = `<tr><td colspan="8">Loading...</td></tr>`;
-
-  try {
-    const response = await fetch(`/api/payrolls?page=${page}&size=${pageSize}`);
-    if (!response.ok) throw new Error("Failed to fetch salary data");
-
-    const data = await response.json();
-    const salaries = data.content || [];
-    currentPage = data.number;
-    totalPages = data.totalPages;
-
-    if (!salaries.length) {
-      tableBody.innerHTML = `<tr><td colspan="8">No salary records found.</td></tr>`;
-      return;
-    }
-
-    tableBody.innerHTML = "";
-    salaries.forEach(sal => {
-      const row = document.createElement("tr");
-      row.innerHTML = `
-        <td>${sal.id ?? "-"}</td>
-        <td>${sal.employeeId ?? "-"}</td>
-        <td>${sal.negotiatedAmount?.toLocaleString() ?? "-"}</td>
-        <td>${sal.workDays ?? "-"}</td>
-        <td>${sal.daysWorked ?? "-"}</td>
-        <td>${sal.hoursWorked ?? "-"}</td>
-        <td>${sal.hoursOverTime ?? "-"}</td>
-        <td><button class="details-btn">View</button></td>
-      `;
-      row.querySelector(".details-btn").addEventListener("click", () => showSalaryDetails(sal));
-      tableBody.appendChild(row);
-    });
-
-    renderSalaryPaginationControls();
-
-  } catch (err) {
-    console.error("Error loading salaries:", err);
-    tableBody.innerHTML = `<tr><td colspan="8">Error loading salary data.</td></tr>`;
-  }
-}
-
-/* ----------------------------
-   Render Salary Pagination Buttons
------------------------------ */
-function renderSalaryPaginationControls() {
-  let paginationDiv = document.getElementById("salary-pagination-controls");
-  if (!paginationDiv) {
-    paginationDiv = document.createElement("div");
-    paginationDiv.id = "salary-pagination-controls";
-    paginationDiv.className = "pagination";
-    document.querySelector("#payroll-section").appendChild(paginationDiv);
-  }
-
-  paginationDiv.innerHTML = `
-    <button ${currentPage === 0 ? "disabled" : ""} id="salaryPrevPage">Previous</button>
-    <span>Page ${currentPage + 1} of ${totalPages}</span>
-    <button ${currentPage >= totalPages - 1 ? "disabled" : ""} id="salaryNextPage">Next</button>
-  `;
-
-  document.getElementById("salaryPrevPage")?.addEventListener("click", () => loadSalaries(currentPage - 1));
-  document.getElementById("salaryNextPage")?.addEventListener("click", () => loadSalaries(currentPage + 1));
 }
 
 /* ----------------------------
@@ -216,74 +234,22 @@ function setupSalaryBackButton() {
   }
 }
 
-/* ----------------------------
-   Load Applicants (with pagination)
------------------------------ */
-async function loadApplicants(page = 0) {
-  const tableBody = document.getElementById("applicantTableBody");
-  tableBody.innerHTML = `<tr><td colspan="8">Loading...</td></tr>`;
-
-  try {
-    const response = await fetch(`/api/applicants?page=${page}&size=${pageSize}`);
-    if (!response.ok) throw new Error("Failed to fetch applicant data");
-
-    const data = await response.json();
-    const applicants = data.content || [];
-    currentPage = data.number;
-    totalPages = data.totalPages;
-
-    if (!applicants.length) {
-      tableBody.innerHTML = `<tr><td colspan="8">No applicants records found.</td></tr>`;
-      return;
-    }
-
-    tableBody.innerHTML = "";
-    applicants.forEach(app => {
-      const row = document.createElement("tr");
-      row.innerHTML = `
-        <td>${app.id}</td>
-        <td>${app.name || "-"}</td>
-        <td>${app.positionTitle || "-"}</td>
-        <td><strong>${app.contact || "-"}</strong></td>
-        <td>${app.dateApplied || "-"}</td>
-        <td>${app.expectedSalary || "-"}</td>
-        <td>${app.status || "-"}</td>
-        <td><button class="details-btn">View</button></td>
-      `;
-      row.querySelector(".details-btn").addEventListener("click", () => showApplicantDetails(app));
-      tableBody.appendChild(row);
-    });
-
-    renderApplicantPaginationControls();
-
-  } catch (err) {
-    console.error("Error loading applicants:", err);
-    tableBody.innerHTML = `<tr><td colspan="8">Error loading applicant data.</td></tr>`;
+function showApplicantDetails(applicant) {
+  const overlay = document.getElementById("applicantDetails");
+  const detailsBody = document.getElementById("applicant-details-body");
+  if (overlay && detailsBody) {
+    detailsBody.innerHTML = `
+      <p><strong>ID:</strong> ${applicant.id}</p>
+      <p><strong>Name:</strong> ${applicant.name || "-"}</p>
+      <p><strong>Position:</strong> ${applicant.positionTitle || "-"}</p>
+      <p><strong>Contact:</strong> ${applicant.contact || "-"}</p>
+      <p><strong>Date Applied:</strong> ${applicant.dateApplied || "-"}</p>
+      <p><strong>Expected Salary:</strong> ${applicant.expectedSalary || "-"}</p>
+      <p><strong>Status:</strong> ${applicant.status || "-"}</p>
+    `;
+    overlay.classList.remove("hidden");
   }
 }
-
-/* ----------------------------
-   Render Applicant Pagination Buttons
------------------------------ */
-function renderApplicantPaginationControls() {
-  let paginationDiv = document.getElementById("applicant-pagination-controls");
-  if (!paginationDiv) {
-    paginationDiv = document.createElement("div");
-    paginationDiv.id = "applicant-pagination-controls";
-    paginationDiv.className = "pagination";
-    document.querySelector("#applicant-section").appendChild(paginationDiv);
-  }
-
-  paginationDiv.innerHTML = `
-    <button ${currentPage === 0 ? "disabled" : ""} id="applicantPrevPage">Previous</button>
-    <span>Page ${currentPage + 1} of ${totalPages}</span>
-    <button ${currentPage >= totalPages - 1 ? "disabled" : ""} id="applicantNextPage">Next</button>
-  `;
-
-  document.getElementById("applicantPrevPage")?.addEventListener("click", () => loadApplicants(currentPage - 1));
-  document.getElementById("applicantNextPage")?.addEventListener("click", () => loadApplicants(currentPage + 1));
-}
-
 
 /* ----------------------------
    Sidebar Navigation
